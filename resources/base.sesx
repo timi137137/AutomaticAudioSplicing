@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sesx>
+<sesx version="1.1">
+<session appBuild="22.0.0.176" appVersion="22.0" audioChannelType="stereo" bitDepth="24" duration="0" sampleRate="48000">
+	<tracks>
+		<audioTrack automationLaneOpenState="false" id="100000001" index="0" select="false" visible="true">
+			<trackParameters trackHeight="134" trackHue="000000000" trackMinimized="false">
+				<name>编号音频</name>
+			</trackParameters>
+			<trackAudioParameters audioChannelType="stereo" automationMode="1" monitoring="false" recordArmed="false" solo="false" soloSafe="false">
+				<trackOutput outputID="100000003" type="trackID"/>
+				<trackInput inputID="-1"/>
+			</trackAudioParameters>
+		</audioTrack>
+		<audioTrack automationLaneOpenState="false" id="100000002" index="1" select="false" visible="true">
+			<trackParameters trackHeight="134" trackHue="120000000" trackMinimized="false">
+				<name>中间音频</name>
+			</trackParameters>
+			<trackAudioParameters audioChannelType="stereo" automationMode="1" monitoring="false" recordArmed="false" solo="false" soloSafe="false">
+				<trackOutput outputID="100000003" type="trackID"/>
+				<trackInput inputID="-1"/>
+			</trackAudioParameters>
+		</audioTrack>
+		<masterTrack automationLaneOpenState="false" id="100000003" index="2" select="false" visible="true">
+			<trackParameters trackHeight="134" trackHue="240000000" trackMinimized="false">
+				<name>混合</name>
+			</trackParameters>
+			<trackAudioParameters audioChannelType="stereo" automationMode="1" monitoring="false" recordArmed="false" solo="false" soloSafe="true">
+				<trackOutput outputID="1" type="hardwareOutput"/>
+				<trackInput inputID="-1"/>
+			</trackAudioParameters>
+		</masterTrack>
+	</tracks>
+	<sessionState/>
+	<xmpMetadata/>
+	<clipGroups/>
+	<metronome/>
+	<properties/>
+</session>
+<files/>
+<audioDevice inputID="00000000-0000-0000-0000-000000000001" outputID="00000000-0000-0000-0000-000000000002">
+	<inputPort id="1" name="Default Stereo Input"/>
+	<outputPort id="1" name="Default Output"/>
+</audioDevice>
+</sesx>
+
