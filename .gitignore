@@ -6,4 +6,5 @@ build/
 .env
 test_*/
 !tests/
+.aas_mix_*/
 .venv/
