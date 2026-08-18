@@ -1,10 +1,10 @@
-"""Export each segment as MP3 by mixing only that segment's clips."""
+"""Export each segment as MP3 by mixing only that segment's tracks."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from adapters.ffmpeg_adapter import FfmpegError, ensure_ffmpeg, mix_to_mp3_320k
+from adapters.ffmpeg_adapter import FfmpegError, ensure_ffmpeg, mix_tracks_to_mp3_320k
 from adapters.progress_ui import TaskProgress, format_progress_range
 from domain.models import SAMPLE_RATE, AudioFile, Clip, ProcessedSource, SegmentTimeline
 
@@ -27,17 +27,14 @@ def _resolve_source_path(
     raise SegmentExportError(f"找不到已处理音频: {audio.filename}")
 
 
-def _clip_specs(
-    segment: SegmentTimeline,
+def _track_clip_specs(
+    clips: list[Clip],
     processed: list[ProcessedSource],
     project_root: Path,
 ) -> list[tuple[Path, float, float, float]]:
-    clips = sorted(
-        segment.main_clips + segment.middle_clips,
-        key=lambda c: c.start_point,
-    )
+    ordered = sorted(clips, key=lambda c: (c.start_point, c.end_point))
     specs: list[tuple[Path, float, float, float]] = []
-    for clip in clips:
+    for clip in ordered:
         path = _resolve_source_path(clip.audio, processed, project_root)
         specs.append(
             (
@@ -57,7 +54,7 @@ def export_segments(
     output_name: str,
     progress: TaskProgress,
 ) -> list[Path]:
-    """Render one MP3 per segment (only that segment's tracks; others muted)."""
+    """Render one MP3 per segment (middle + main tracks mixed; other segments muted)."""
     ensure_ffmpeg()
     if not segments:
         return []
@@ -73,9 +70,21 @@ def export_segments(
     for segment, duration_seconds in zip(segments, segment_durations):
         seg_num = segment.index + 1
         out_path = project_root / segment_mp3_filename(output_name, segment.index)
-        specs = _clip_specs(segment, processed, project_root)
-        if not specs:
+        tracks = [
+            _track_clip_specs(segment.middle_clips, processed, project_root),
+            _track_clip_specs(segment.main_clips, processed, project_root),
+        ]
+        tracks = [t for t in tracks if t]
+        if not tracks:
             raise SegmentExportError(f"段 {seg_num} 没有可导出的 clip。")
+
+        expected_mains = len(segment.main_clips)
+        expected_middles = len(segment.middle_clips)
+        if expected_mains != expected_middles:
+            raise SegmentExportError(
+                f"段 {seg_num} 轨道数量不一致："
+                f"编号 {expected_mains} / 中间 {expected_middles}"
+            )
 
         def on_progress(
             current: float,
@@ -95,8 +104,8 @@ def export_segments(
             )
 
         try:
-            mix_to_mp3_320k(
-                clip_specs=specs,
+            mix_tracks_to_mp3_320k(
+                tracks=tracks,
                 duration_seconds=duration_seconds,
                 dst=out_path,
                 on_progress=on_progress,

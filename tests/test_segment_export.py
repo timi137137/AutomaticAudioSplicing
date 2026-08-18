@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from adapters.segment_exporter import segment_mp3_filename
+from adapters.segment_exporter import _track_clip_specs, segment_mp3_filename
 from domain.models import (
     SAMPLE_RATE,
     AudioFile,
@@ -14,7 +14,6 @@ from domain.models import (
     ProcessedSource,
     SegmentTimeline,
 )
-from adapters.segment_exporter import _clip_specs
 
 
 class SegmentExportNamingTest(unittest.TestCase):
@@ -24,41 +23,40 @@ class SegmentExportNamingTest(unittest.TestCase):
 
 
 class SegmentClipSpecsTest(unittest.TestCase):
-    def test_specs_use_only_segment_clips(self) -> None:
+    def test_track_specs_sorted(self) -> None:
         audio = AudioFile("101-1", Path("a.wav"), "[101-1] a.wav")
         middle = AudioFile("0-0", Path("m.wav"), "[0-0] m.wav")
-        seg = SegmentTimeline(
-            index=0,
-            middle_clips=[
-                Clip(
-                    ClipKind.MIDDLE,
-                    middle,
-                    0,
-                    SAMPLE_RATE // 2,
-                    0,
-                    SAMPLE_RATE // 2,
-                )
-            ],
-            main_clips=[
-                Clip(
-                    ClipKind.MAIN,
-                    audio,
-                    SAMPLE_RATE // 2,
-                    SAMPLE_RATE // 2 + SAMPLE_RATE,
-                    0,
-                    SAMPLE_RATE,
-                )
-            ],
-        )
+        middle_clips = [
+            Clip(
+                ClipKind.MIDDLE,
+                middle,
+                0,
+                SAMPLE_RATE // 2,
+                0,
+                SAMPLE_RATE // 2,
+            )
+        ]
+        main_clips = [
+            Clip(
+                ClipKind.MAIN,
+                audio,
+                SAMPLE_RATE // 2,
+                SAMPLE_RATE // 2 + SAMPLE_RATE,
+                0,
+                SAMPLE_RATE,
+            )
+        ]
         processed = [
             ProcessedSource(audio=middle, relative_path="Sources/m.wav"),
             ProcessedSource(audio=audio, relative_path="Sources/a.wav"),
         ]
         root = Path("/proj")
-        specs = _clip_specs(seg, processed, root)
-        self.assertEqual(len(specs), 2)
-        self.assertEqual(specs[0][3], 0.0)
-        self.assertEqual(specs[1][3], 0.5)
+        mid_specs = _track_clip_specs(middle_clips, processed, root)
+        main_specs = _track_clip_specs(main_clips, processed, root)
+        self.assertEqual(len(mid_specs), 1)
+        self.assertEqual(len(main_specs), 1)
+        self.assertEqual(mid_specs[0][3], 0.0)
+        self.assertEqual(main_specs[0][3], 0.5)
 
 
 if __name__ == "__main__":

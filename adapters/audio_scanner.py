@@ -10,8 +10,9 @@ import soundfile as sf
 from adapters.progress_ui import TaskProgress, run_parallel
 from domain.models import SAMPLE_RATE, AudioCatalog, AudioFile
 
+# Allow "[code] title.ext" and "[code][tag] title.ext" (no space after ]).
 FILENAME_PATTERN = re.compile(
-    r"^\[(?P<code>[^\]]+)\]\s+(?P<title>.+)\.(?P<ext>wav|flac)$",
+    r"^\[(?P<code>[^\]]+)\]\s*(?P<title>.+)\.(?P<ext>wav|flac)$",
     re.IGNORECASE,
 )
 
@@ -20,17 +21,85 @@ class ScanError(Exception):
     pass
 
 
+def _sub_sort_key(code: str) -> tuple[int, str]:
+    if "-" not in code:
+        return (0, code)
+    _, _, sub = code.partition("-")
+    try:
+        return (int(sub), code)
+    except ValueError:
+        return (0, code)
+
+
 def _read_order(path: Path) -> list[str]:
     if not path.is_file():
         raise ScanError(f"顺序文件不存在: {path}")
+    # utf-8-sig strips BOM so the first code is not corrupted.
     codes: list[str] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         code = line.strip()
         if code:
             codes.append(code)
     if not codes:
         raise ScanError("顺序文件为空。")
     return codes
+
+
+def _expand_order_codes(
+    ordered_codes: list[str],
+    files_by_code: dict[str, AudioFile],
+    middle_code: str | None = None,
+) -> list[str]:
+    """Resolve order entries.
+
+    - Full code (e.g. ``101-2``): use that file exactly.
+    - Main number only (e.g. ``101``): use ``101-1`` only (not all parts).
+    """
+    middle_main = middle_code.split("-", 1)[0] if middle_code else None
+    expanded: list[str] = []
+    seen: set[str] = set()
+    missing: list[str] = []
+
+    for code in ordered_codes:
+        if middle_code and code == middle_code:
+            continue
+        if middle_main and code == middle_main and code not in files_by_code:
+            continue
+
+        # Exact full code (contains '-' or exact filename code without needing -1).
+        if "-" in code:
+            if code in files_by_code:
+                if code not in seen:
+                    expanded.append(code)
+                    seen.add(code)
+                continue
+            missing.append(code)
+            continue
+
+        # Main number only → prefer exact code, else ``{main}-1``.
+        if code in files_by_code:
+            if code not in seen:
+                expanded.append(code)
+                seen.add(code)
+            continue
+
+        part_one = f"{code}-1"
+        if part_one in files_by_code:
+            if part_one not in seen:
+                expanded.append(part_one)
+                seen.add(part_one)
+            continue
+
+        missing.append(code)
+
+    if missing:
+        uniq = list(dict.fromkeys(missing))
+        preview = ", ".join(uniq[:10])
+        more = f" 等 {len(uniq)} 个" if len(uniq) > 10 else ""
+        raise ScanError(f"顺序文件中的编码未找到音频: {preview}{more}")
+    if not expanded:
+        raise ScanError("顺序展开后没有可用的编号音频。")
+    return expanded
 
 
 def scan(audio_dir: Path, order_path: Path, middle_code: str) -> AudioCatalog:
@@ -53,13 +122,12 @@ def scan(audio_dir: Path, order_path: Path, middle_code: str) -> AudioCatalog:
             filename=entry.name,
         )
 
-    ordered_codes = _read_order(order_path)
-    for code in ordered_codes:
-        if code not in files_by_code:
-            raise ScanError(f"顺序文件中的编码未找到音频: {code}")
-
     if middle_code not in files_by_code:
         raise ScanError(f"中间音频编码未找到: {middle_code}")
+
+    ordered_codes = _expand_order_codes(
+        _read_order(order_path), files_by_code, middle_code=middle_code
+    )
 
     return AudioCatalog(
         audio_dir=audio_dir,

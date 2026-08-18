@@ -216,7 +216,7 @@ def run_parallel(
             executor.shutdown(wait=False, cancel_futures=True)
             raise
 
-    return [r for r in results if r is not None]
+    return list(results)  # type: ignore[return-value]
 
 
 def run_parallel_timed(
@@ -259,4 +259,4 @@ def run_parallel_timed(
             executor.shutdown(wait=False, cancel_futures=True)
             raise
 
-    return [r for r in results if r is not None]
+    return list(results)  # type: ignore[return-value]

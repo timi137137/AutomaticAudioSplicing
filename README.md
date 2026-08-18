@@ -21,7 +21,7 @@ python main.py --audio-dir "D:\Songs" --order "D:\Songs\order.txt" --middle-code
 | 参数 | 说明 |
 |------|------|
 | `--audio-dir` | 源音频目录 |
-| `--order` | 顺序 txt（每行一个编码，如 `101-1`） |
+| `--order` | 顺序 txt（主编号如 `101` → 只用 `101-1`；完整码如 `101-2` → 按该文件） |
 | `--middle-code` | 中间音频编码（如 `0-0`） |
 | `--output` | 项目文件夹名（在 cwd 下创建） |
 | `--ignore-sample-rate` | ffmpeg 统一转 FLAC 48kHz 24bit |

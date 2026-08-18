@@ -7,7 +7,7 @@ from pathlib import Path
 
 from adapters.ffmpeg_adapter import (
     _adaptive_chunk_size,
-    _build_mix_filter,
+    _build_track_concat_filter,
     _parse_out_time_seconds,
 )
 from adapters.progress_ui import format_clock, format_progress_range
@@ -55,8 +55,9 @@ class MixChunkingTest(unittest.TestCase):
             (Path("a.wav"), 0.0, 1.0, 0.0),
             (Path("b.wav"), 0.0, 1.0, 1.0),
         ]
-        filters = _build_mix_filter(specs)
-        self.assertTrue(any("amix=inputs=3" in f for f in filters))
+        filters, n_inputs = _build_track_concat_filter(specs, 3.0, "tout")
+        self.assertEqual(n_inputs, 2)
+        self.assertTrue(any("concat=n=" in f for f in filters))
 
 
 if __name__ == "__main__":

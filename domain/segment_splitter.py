@@ -92,10 +92,18 @@ def split_timeline(global_tl: GlobalTimeline, segments: int) -> list[SegmentTime
             if seg_i + 1 < len(boundaries)
             else n_main
         )
+        if start_idx >= end_idx:
+            raise SegmentSplitError(f"分段 {seg_i + 1} 为空，请检查分段参数。")
         main_raw = global_tl.main_clips[start_idx:end_idx]
         middle_raw = global_tl.middle_clips[start_idx:end_idx]
         main, middle = _retime_segment_clips(main_raw, middle_raw)
         result.append(
             SegmentTimeline(index=seg_i, main_clips=main, middle_clips=middle)
+        )
+
+    covered = sum(len(seg.main_clips) for seg in result)
+    if covered != n_main:
+        raise SegmentSplitError(
+            f"分段覆盖异常：期望 {n_main} 首，实际 {covered} 首。"
         )
     return result
