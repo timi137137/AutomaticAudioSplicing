@@ -4,38 +4,41 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from adapters.ffmpeg_adapter import FfmpegError, ensure_ffmpeg, mix_tracks_to_mp3_320k
-from adapters.progress_ui import TaskProgress, format_progress_range
-from domain.models import SAMPLE_RATE, AudioFile, Clip, ProcessedSource, SegmentTimeline
-
-
-class SegmentExportError(Exception):
-    pass
+from aas.domain.models import (
+    SAMPLE_RATE,
+    Clip,
+    ProcessedSource,
+    SegmentTimeline,
+    source_key,
+)
+from aas.errors import FfmpegError, SegmentExportError
+from aas.infra.ffmpeg import ensure_ffmpeg, mix_tracks_to_mp3_320k
+from aas.infra.progress import TaskProgress, format_progress_range
 
 
 def segment_mp3_filename(output_name: str, segment_index: int) -> str:
     return f"{output_name}_{segment_index + 1}.mp3"
 
 
-def _resolve_source_path(
-    audio: AudioFile, processed: list[ProcessedSource], project_root: Path
-) -> Path:
-    key = str(audio.path.resolve())
-    for ps in processed:
-        if str(ps.audio.path.resolve()) == key:
-            return project_root / ps.relative_path.replace("\\", "/")
-    raise SegmentExportError(f"找不到已处理音频: {audio.filename}")
+def source_paths(
+    processed: list[ProcessedSource], project_root: Path
+) -> dict[str, Path]:
+    """Map each processed source to its on-disk path inside the project."""
+    return {
+        ps.key: project_root / ps.relative_path.replace("\\", "/") for ps in processed
+    }
 
 
 def _track_clip_specs(
     clips: list[Clip],
-    processed: list[ProcessedSource],
-    project_root: Path,
+    paths_by_key: dict[str, Path],
 ) -> list[tuple[Path, float, float, float]]:
     ordered = sorted(clips, key=lambda c: (c.start_point, c.end_point))
     specs: list[tuple[Path, float, float, float]] = []
     for clip in ordered:
-        path = _resolve_source_path(clip.audio, processed, project_root)
+        path = paths_by_key.get(source_key(clip.audio.path))
+        if path is None:
+            raise SegmentExportError(f"找不到已处理音频: {clip.audio.filename}")
         specs.append(
             (
                 path,
@@ -63,16 +66,17 @@ def export_segments(
     total_seconds = sum(segment_durations)
     progress.begin_work("导出 MP3", total_seconds)
 
+    paths_by_key = source_paths(processed, project_root)
     exported: list[Path] = []
     finished_seconds = 0.0
     total_count = len(segments)
 
-    for segment, duration_seconds in zip(segments, segment_durations):
+    for segment, duration_seconds in zip(segments, segment_durations, strict=True):
         seg_num = segment.index + 1
         out_path = project_root / segment_mp3_filename(output_name, segment.index)
         tracks = [
-            _track_clip_specs(segment.middle_clips, processed, project_root),
-            _track_clip_specs(segment.main_clips, processed, project_root),
+            _track_clip_specs(segment.middle_clips, paths_by_key),
+            _track_clip_specs(segment.main_clips, paths_by_key),
         ]
         tracks = [t for t in tracks if t]
         if not tracks:

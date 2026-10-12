@@ -6,9 +6,11 @@ import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from adapters.ffmpeg_adapter import convert_to_flac_48k24, ensure_ffmpeg
-from adapters.progress_ui import TaskProgress, run_parallel, run_parallel_timed
-from domain.models import SAMPLE_RATE, AudioFile, ProcessedSource
+import soundfile as sf
+
+from aas.domain.models import SAMPLE_RATE, AudioFile, ProcessedSource
+from aas.infra.ffmpeg import convert_to_flac_48k24, ensure_ffmpeg
+from aas.infra.progress import TaskProgress, run_parallel, run_parallel_timed
 
 
 class SourceProcessingStrategy(ABC):
@@ -35,7 +37,6 @@ class CopyStrategy(SourceProcessingStrategy):
             dest = dest_dir / audio.filename
             shutil.copy2(audio.path, dest)
             rel = f"Sources/{audio.filename}"
-            audio.sources_name = audio.filename
             return ProcessedSource(audio=audio, relative_path=rel)
 
         results = run_parallel(files, "复制音频", _copy, progress)
@@ -67,7 +68,6 @@ class TranscodeStrategy(SourceProcessingStrategy):
             )
             audio.duration_seconds = _probe_duration(dest)
             audio.sample_rate = SAMPLE_RATE
-            audio.sources_name = flac_name
             rel = f"Sources/{flac_name}"
             return ProcessedSource(audio=audio, relative_path=rel)
 
@@ -83,7 +83,4 @@ class TranscodeStrategy(SourceProcessingStrategy):
 
 
 def _probe_duration(path: Path) -> float:
-    import soundfile as sf
-
-    info = sf.info(str(path))
-    return info.duration
+    return sf.info(str(path)).duration

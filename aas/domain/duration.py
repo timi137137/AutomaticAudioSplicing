@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from domain.models import SAMPLE_RATE
+from aas.domain.models import SAMPLE_RATE
 
 
 def format_duration_from_samples(samples: int) -> str:

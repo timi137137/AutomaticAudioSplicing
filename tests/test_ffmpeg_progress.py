@@ -5,12 +5,12 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from adapters.ffmpeg_adapter import (
+from aas.infra.ffmpeg import (
     _adaptive_chunk_size,
     _build_track_concat_filter,
     _parse_out_time_seconds,
 )
-from adapters.progress_ui import format_clock, format_progress_range
+from aas.infra.progress import format_clock, format_progress_range
 
 
 class FfmpegProgressParseTest(unittest.TestCase):

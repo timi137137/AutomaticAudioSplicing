@@ -11,6 +11,8 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
+from aas.errors import FfmpegError
+
 ProgressCallback = Callable[[float, float], None]
 
 _OUT_TIME_US = re.compile(r"^out_time_us=(\d+)$")
@@ -20,10 +22,6 @@ _OUT_TIME = re.compile(r"^out_time=(?P<t>\d{2}:\d{2}:\d{2}\.\d+)$")
 # Windows CreateProcess command-line limit is ~32k; stay well below.
 _MAX_CMD_CHARS = 7000
 _MAX_CLIPS_PER_CHUNK = 12
-
-
-class FfmpegError(Exception):
-    pass
 
 
 def ensure_ffmpeg() -> str:
@@ -432,19 +430,3 @@ def mix_tracks_to_mp3_320k(
 
     if on_progress:
         on_progress(duration_seconds, duration_seconds)
-
-
-def mix_to_mp3_320k(
-    *,
-    clip_specs: list[tuple[Path, float, float, float]],
-    duration_seconds: float,
-    dst: Path,
-    on_progress: ProgressCallback | None = None,
-) -> None:
-    """Backward-compatible wrapper: treat all clips as one track."""
-    mix_tracks_to_mp3_320k(
-        tracks=[clip_specs],
-        duration_seconds=duration_seconds,
-        dst=dst,
-        on_progress=on_progress,
-    )

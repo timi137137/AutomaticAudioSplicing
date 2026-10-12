@@ -7,7 +7,14 @@ import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from domain.models import BIT_DEPTH, SAMPLE_RATE, Clip, ProcessedSource, SegmentTimeline
+from aas.domain.models import (
+    BIT_DEPTH,
+    SAMPLE_RATE,
+    Clip,
+    ProcessedSource,
+    SegmentTimeline,
+    source_key,
+)
 
 _XML_DECL = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE sesx>\n'
 
@@ -32,6 +39,7 @@ class SesxBuilder:
         self._files: list[ProcessedSource] = []
         self._segments: list[SegmentTimeline] = []
         self._file_id_by_path: dict[str, int] = {}
+        self._display_name_by_path: dict[str, str] = {}
 
     def load_template(self) -> SesxBuilder:
         self._tree = ET.parse(self._template_path)
@@ -84,13 +92,13 @@ class SesxBuilder:
         unique: list[ProcessedSource] = []
         seen: set[str] = set()
         for ps in self._files:
-            key = str(ps.audio.path.resolve())
-            if key in seen:
+            if ps.key in seen:
                 continue
-            seen.add(key)
+            seen.add(ps.key)
             unique.append(ps)
 
-        self._file_id_by_path: dict[str, int] = {}
+        self._file_id_by_path = {}
+        self._display_name_by_path = {}
         for file_id, ps in enumerate(unique):
             abs_path = str((project_root / ps.relative_path).resolve())
             ET.SubElement(
@@ -103,7 +111,8 @@ class SesxBuilder:
                     "mediaHandler": "WaveHandler",
                 },
             )
-            self._file_id_by_path[str(ps.audio.path.resolve())] = file_id
+            self._file_id_by_path[ps.key] = file_id
+            self._display_name_by_path[ps.key] = ps.display_name
 
     def _write_tracks(self) -> None:
         assert self._tracks_el is not None
@@ -228,9 +237,9 @@ class SesxBuilder:
         return track
 
     def _make_clip(self, clip: Clip, clip_id: int) -> ET.Element:
-        path_key = str(clip.audio.path.resolve())
+        path_key = source_key(clip.audio.path)
         file_id = self._file_id_by_path.get(path_key, 0)
-        display_name = clip.audio.sources_name or clip.audio.filename
+        display_name = self._display_name_by_path.get(path_key, clip.audio.filename)
         el = ET.Element(
             "audioClip",
             {

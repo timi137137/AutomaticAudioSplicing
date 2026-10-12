@@ -6,8 +6,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from adapters.audio_scanner import FILENAME_PATTERN, ScanError, _expand_order_codes, scan
-from domain.models import AudioFile
+from aas.domain.models import AudioFile
+from aas.errors import ScanError
+from aas.infra.scanner import FILENAME_PATTERN, _expand_order_codes, scan
 
 
 class FilenamePatternTest(unittest.TestCase):

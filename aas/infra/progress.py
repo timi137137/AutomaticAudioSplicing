@@ -94,9 +94,6 @@ class TaskProgress:
         else:
             console.print(message)
 
-    def status(self, message: str) -> None:
-        self.log(message)
-
     def begin_work(self, label: str, total: float) -> None:
         with self._lock:
             self._complete_current_phase()
@@ -115,17 +112,6 @@ class TaskProgress:
                 if pct != self._last_plain_pct:
                     self._last_plain_pct = pct
                     console.print(description)
-
-    def add_overall(self, label: str, total: int) -> None:
-        self.begin_work(label, float(total))
-
-    def update_overall(self, description: str, completed: int | None = None) -> None:
-        completed_value = float(completed) if completed is not None else 0.0
-        self.update_work(completed_value, description)
-
-    def advance_overall(self, description: str | None = None) -> None:
-        if description:
-            self.update_work(0.0, description)
 
 
 class DurationWorkTracker:
@@ -195,7 +181,7 @@ def run_parallel(
 
     workers = _worker_count(len(items), max_workers)
     total = len(items)
-    progress.add_overall(f"{label} 0/{total}", total)
+    progress.begin_work(f"{label} 0/{total}", float(total))
     results: list[R | None] = [None] * total
     completed = 0
 
@@ -209,8 +195,8 @@ def run_parallel(
                 results[idx] = future.result()
                 completed += 1
                 name = getattr(items[idx], "filename", str(items[idx]))
-                progress.update_overall(
-                    f"{label} {completed}/{total}  {name}", completed
+                progress.update_work(
+                    float(completed), f"{label} {completed}/{total}  {name}"
                 )
         except Exception:
             executor.shutdown(wait=False, cancel_futures=True)

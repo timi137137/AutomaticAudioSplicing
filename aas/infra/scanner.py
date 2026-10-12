@@ -7,28 +7,15 @@ from pathlib import Path
 
 import soundfile as sf
 
-from adapters.progress_ui import TaskProgress, run_parallel
-from domain.models import SAMPLE_RATE, AudioCatalog, AudioFile
+from aas.domain.models import SAMPLE_RATE, AudioCatalog, AudioFile
+from aas.errors import ScanError
+from aas.infra.progress import TaskProgress, run_parallel
 
 # Allow "[code] title.ext" and "[code][tag] title.ext" (no space after ]).
 FILENAME_PATTERN = re.compile(
     r"^\[(?P<code>[^\]]+)\]\s*(?P<title>.+)\.(?P<ext>wav|flac)$",
     re.IGNORECASE,
 )
-
-
-class ScanError(Exception):
-    pass
-
-
-def _sub_sort_key(code: str) -> tuple[int, str]:
-    if "-" not in code:
-        return (0, code)
-    _, _, sub = code.partition("-")
-    try:
-        return (int(sub), code)
-    except ValueError:
-        return (0, code)
 
 
 def _read_order(path: Path) -> list[str]:

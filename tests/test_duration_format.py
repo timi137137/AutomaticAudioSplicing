@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from domain.duration_format import format_duration_from_samples
-from domain.models import SAMPLE_RATE
+from aas.domain.duration import format_duration_from_samples
+from aas.domain.models import SAMPLE_RATE
 
 
 class DurationFormatTest(unittest.TestCase):

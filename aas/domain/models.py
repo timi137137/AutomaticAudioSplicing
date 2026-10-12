@@ -6,9 +6,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-
 SAMPLE_RATE = 48000
 BIT_DEPTH = 24
+
+
+def source_key(path: Path) -> str:
+    """Stable identity for a source file, shared by every lookup table."""
+    return str(path.resolve())
 
 
 class ClipKind(Enum):
@@ -34,7 +38,6 @@ class AudioFile:
     filename: str
     duration_seconds: float = 0.0
     sample_rate: int = 0
-    sources_name: str = ""
 
     @property
     def duration_samples(self) -> int:
@@ -49,11 +52,6 @@ class Clip:
     end_point: int
     source_in_point: int = 0
     source_out_point: int = 0
-    global_start: int = 0
-
-    @property
-    def duration_samples(self) -> int:
-        return self.end_point - self.start_point
 
 
 @dataclass
@@ -82,8 +80,18 @@ class SegmentTimeline:
 
 @dataclass
 class ProcessedSource:
+    """A source that now lives inside the project's Sources directory."""
+
     audio: AudioFile
     relative_path: str
+
+    @property
+    def key(self) -> str:
+        return source_key(self.audio.path)
+
+    @property
+    def display_name(self) -> str:
+        return Path(self.relative_path).name
 
 
 @dataclass
@@ -99,14 +107,11 @@ class AudioCatalog:
         result: list[AudioFile] = []
         for code in self.ordered_codes:
             f = self.files_by_code[code]
-            key = str(f.path.resolve())
+            key = source_key(f.path)
             if key not in seen:
                 seen.add(key)
                 result.append(f)
-        key = str(self.middle_file.path.resolve())
+        key = source_key(self.middle_file.path)
         if key not in seen:
             result.append(self.middle_file)
         return result
-
-    def ordered_main_files(self) -> list[AudioFile]:
-        return [self.files_by_code[c] for c in self.ordered_codes]

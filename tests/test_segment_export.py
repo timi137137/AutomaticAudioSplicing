@@ -5,15 +5,14 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from adapters.segment_exporter import _track_clip_specs, segment_mp3_filename
-from domain.models import (
+from aas.domain.models import (
     SAMPLE_RATE,
     AudioFile,
     Clip,
     ClipKind,
     ProcessedSource,
-    SegmentTimeline,
 )
+from aas.infra.exporter import _track_clip_specs, segment_mp3_filename, source_paths
 
 
 class SegmentExportNamingTest(unittest.TestCase):
@@ -51,8 +50,9 @@ class SegmentClipSpecsTest(unittest.TestCase):
             ProcessedSource(audio=audio, relative_path="Sources/a.wav"),
         ]
         root = Path("/proj")
-        mid_specs = _track_clip_specs(middle_clips, processed, root)
-        main_specs = _track_clip_specs(main_clips, processed, root)
+        paths = source_paths(processed, root)
+        mid_specs = _track_clip_specs(middle_clips, paths)
+        main_specs = _track_clip_specs(main_clips, paths)
         self.assertEqual(len(mid_specs), 1)
         self.assertEqual(len(main_specs), 1)
         self.assertEqual(mid_specs[0][3], 0.0)

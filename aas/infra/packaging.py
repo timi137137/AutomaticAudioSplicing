@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
-class PackageError(Exception):
-    pass
+from aas.errors import PackageError
 
 
 def prepare_project_root(output_name: str) -> tuple[Path, Path]:

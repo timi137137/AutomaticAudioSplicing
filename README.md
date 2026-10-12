@@ -57,9 +57,12 @@ build.bat
 
 ## 架构
 
-- **Facade**：`SplicingFacade` 统一编排
-- **Strategy**：复制/转码、单段/分段布局
-- **Builder**：`TimelineBuilder`、`SesxBuilder`
+代码位于根包 `aas`，依赖方向为 `domain` ← `service` ← `cli`；`infra` 依赖 `domain`，由 `service` 调用。
+
+- `aas/domain/`：纯领域逻辑（`models`、`timeline` 时间轴构建与分段、`duration` 时长格式化），不涉及 I/O
+- `aas/service.py`：`SplicingService` 编排完整流程
+- `aas/infra/`：`scanner` 扫描探测、`processing` 复制/转码策略、`sesx` 项目生成、`packaging` 打包、`exporter` MP3 导出、`ffmpeg` 命令封装、`progress` 进度 UI、`resources` 资源定位
+- `aas/cli.py`：命令行参数解析与结果输出；`main.py` 为入口
 
 ## 项目规格
 

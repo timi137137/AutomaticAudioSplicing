@@ -1,12 +1,55 @@
-"""Split global timeline into K segment-local timelines."""
+"""Global timeline construction and segment layout."""
 
 from __future__ import annotations
 
-from domain.models import Clip, GlobalTimeline, SegmentTimeline
+from aas.domain.models import (
+    AudioCatalog,
+    Clip,
+    ClipKind,
+    GlobalTimeline,
+    SegmentTimeline,
+)
+from aas.errors import SegmentSplitError
 
 
-class SegmentSplitError(Exception):
-    pass
+class TimelineBuilder:
+    """Build the global M → A1 → M → A2 … alternating timeline."""
+
+    def build(self, catalog: AudioCatalog) -> GlobalTimeline:
+        middle = catalog.middle_file
+        middle_samples = middle.duration_samples
+        timeline = GlobalTimeline()
+        cursor = 0
+
+        for code in catalog.ordered_codes:
+            main = catalog.files_by_code[code]
+            main_samples = main.duration_samples
+
+            timeline.middle_clips.append(
+                Clip(
+                    kind=ClipKind.MIDDLE,
+                    audio=middle,
+                    start_point=cursor,
+                    end_point=cursor + middle_samples,
+                    source_in_point=0,
+                    source_out_point=middle_samples,
+                )
+            )
+            cursor += middle_samples
+
+            timeline.main_clips.append(
+                Clip(
+                    kind=ClipKind.MAIN,
+                    audio=main,
+                    start_point=cursor,
+                    end_point=cursor + main_samples,
+                    source_in_point=0,
+                    source_out_point=main_samples,
+                )
+            )
+            cursor += main_samples
+
+        return timeline
 
 
 def _valid_split_indices(global_tl: GlobalTimeline) -> list[tuple[int, int]]:
@@ -20,11 +63,6 @@ def _valid_split_indices(global_tl: GlobalTimeline) -> list[tuple[int, int]]:
 def _pick_split_indices(
     candidates: list[tuple[int, int]], total: int, segments: int
 ) -> list[int]:
-    if len(candidates) < segments - 1:
-        raise SegmentSplitError(
-            f"编号音频数量 ({len(candidates) + 1}) 不足以分成 {segments} 段，"
-            f"至少需要 {segments} 个编号音频。"
-        )
     chosen_indices: list[int] = []
     used = 0
     for part in range(1, segments):
@@ -58,7 +96,6 @@ def _retime_segment_clips(
             end_point=c.end_point - seg_start,
             source_in_point=c.source_in_point,
             source_out_point=c.source_out_point,
-            global_start=c.global_start,
         )
 
     return [_shift(c) for c in main_clips], [_shift(c) for c in middle_clips]
@@ -79,9 +116,7 @@ def split_timeline(global_tl: GlobalTimeline, segments: int) -> list[SegmentTime
             f"至少需要 {segments} 个编号音频。"
         )
 
-    split_after = _pick_split_indices(
-        candidates, global_tl.total_duration, segments
-    )
+    split_after = _pick_split_indices(candidates, global_tl.total_duration, segments)
     boundaries = [-1] + split_after
     result: list[SegmentTimeline] = []
 
@@ -107,3 +142,18 @@ def split_timeline(global_tl: GlobalTimeline, segments: int) -> list[SegmentTime
             f"分段覆盖异常：期望 {n_main} 首，实际 {covered} 首。"
         )
     return result
+
+
+def layout_segments(
+    global_tl: GlobalTimeline, segments: int | None
+) -> list[SegmentTimeline]:
+    """Single track pair by default; split into ``segments`` equal-length pairs otherwise."""
+    if segments and segments >= 2:
+        return split_timeline(global_tl, segments)
+    return [
+        SegmentTimeline(
+            index=0,
+            main_clips=list(global_tl.main_clips),
+            middle_clips=list(global_tl.middle_clips),
+        )
+    ]

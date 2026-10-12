@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import unittest
 
-from domain.models import (
+from aas.domain.models import (
     SAMPLE_RATE,
     AudioFile,
     Clip,
     ClipKind,
     GlobalTimeline,
 )
-from domain.segment_splitter import split_timeline
+from aas.domain.timeline import split_timeline
 
 
 def _clip(kind: ClipKind, start: int, dur: int, code: str = "x") -> Clip:
@@ -23,7 +23,6 @@ def _clip(kind: ClipKind, start: int, dur: int, code: str = "x") -> Clip:
         end_point=start + dur,
         source_in_point=0,
         source_out_point=dur,
-        global_start=start,
     )
 
 
@@ -59,8 +58,8 @@ class SegmentSplitterTest(unittest.TestCase):
 
 class TimelineBuilderTest(unittest.TestCase):
     def test_alternating_duration(self) -> None:
-        from domain.models import AudioCatalog
-        from domain.timeline_builder import TimelineBuilder
+        from aas.domain.models import AudioCatalog
+        from aas.domain.timeline import TimelineBuilder
 
         catalog = AudioCatalog(
             audio_dir=__file__,
