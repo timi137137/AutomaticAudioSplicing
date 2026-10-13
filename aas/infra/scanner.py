@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from pathlib import Path
 
 import soundfile as sf
@@ -18,7 +19,7 @@ FILENAME_PATTERN = re.compile(
 )
 
 
-def _read_order(path: Path) -> list[str]:
+def read_order(path: Path) -> list[str]:
     if not path.is_file():
         raise ScanError(f"顺序文件不存在: {path}")
     # utf-8-sig strips BOM so the first code is not corrupted.
@@ -89,37 +90,38 @@ def _expand_order_codes(
     return expanded
 
 
-def scan(audio_dir: Path, order_path: Path, middle_code: str) -> AudioCatalog:
-    if not audio_dir.is_dir():
-        raise ScanError(f"音频目录不存在: {audio_dir}")
-
+def scan(
+    audio_dirs: Sequence[Path],
+    ordered_codes: list[str],
+    middle_code: str,
+) -> AudioCatalog:
     files_by_code: dict[str, AudioFile] = {}
-    for entry in audio_dir.iterdir():
-        if not entry.is_file():
-            continue
-        match = FILENAME_PATTERN.match(entry.name)
-        if not match:
-            continue
-        code = match.group("code")
-        if code in files_by_code:
-            raise ScanError(f"编码重复: [{code}] 对应多个文件。")
-        files_by_code[code] = AudioFile(
-            code=code,
-            path=entry,
-            filename=entry.name,
-        )
+    for audio_dir in audio_dirs:
+        if not audio_dir.is_dir():
+            raise ScanError(f"音频目录不存在: {audio_dir}")
+        for entry in audio_dir.iterdir():
+            if not entry.is_file():
+                continue
+            match = FILENAME_PATTERN.match(entry.name)
+            if not match:
+                continue
+            code = match.group("code")
+            if code in files_by_code:
+                raise ScanError(f"编码重复: [{code}] 对应多个文件。")
+            files_by_code[code] = AudioFile(
+                code=code,
+                path=entry,
+                filename=entry.name,
+            )
 
     if middle_code not in files_by_code:
         raise ScanError(f"中间音频编码未找到: {middle_code}")
 
-    ordered_codes = _expand_order_codes(
-        _read_order(order_path), files_by_code, middle_code=middle_code
-    )
+    expanded = _expand_order_codes(ordered_codes, files_by_code, middle_code=middle_code)
 
     return AudioCatalog(
-        audio_dir=audio_dir,
         middle_code=middle_code,
-        ordered_codes=ordered_codes,
+        ordered_codes=expanded,
         files_by_code=files_by_code,
         middle_file=files_by_code[middle_code],
     )

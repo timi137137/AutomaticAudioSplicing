@@ -8,3 +8,4 @@ test_*/
 !tests/
 .aas_mix_*/
 .venv/
+downloads/

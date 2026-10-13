@@ -62,7 +62,6 @@ class TimelineBuilderTest(unittest.TestCase):
         from aas.domain.timeline import TimelineBuilder
 
         catalog = AudioCatalog(
-            audio_dir=__file__,
             middle_code="0-0",
             ordered_codes=["101-1", "101-2"],
             files_by_code={

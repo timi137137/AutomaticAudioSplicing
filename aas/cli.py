@@ -24,12 +24,29 @@ def build_parser() -> argparse.ArgumentParser:
         description="Adobe Audition 多轨 SESX 自动拼接工具",
         allow_abbrev=False,
     )
-    parser.add_argument("--audio-dir", required=True, type=Path, help="源音频目录")
-    parser.add_argument("--order", required=True, type=Path, help="顺序 txt 文件")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--order", type=Path, help="顺序 txt 文件")
+    source.add_argument(
+        "--excel",
+        type=Path,
+        help="下载排期 Excel（列：编码 / 歌名 / 时间区间 / 音源地址）",
+    )
+    parser.add_argument(
+        "--audio-dir",
+        required=True,
+        type=Path,
+        help="本地音频目录（--order 时为源目录；--excel 时为中间音频所在目录）",
+    )
     parser.add_argument(
         "--middle-code", required=True, help="中间音频编码（不含方括号）"
     )
     parser.add_argument("--output", required=True, help="项目文件夹名称")
+    parser.add_argument(
+        "--cookies", type=Path, default=None, help="yt-dlp cookies 文件（仅 --excel）"
+    )
+    parser.add_argument(
+        "--proxy", default=None, help="yt-dlp 代理，如 http://127.0.0.1:7890（仅 --excel）"
+    )
     parser.add_argument(
         "--ignore-sample-rate",
         action="store_true",
@@ -57,14 +74,20 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("禁止使用位置参数，请使用 --audio-dir 等具名参数。")
 
     args = parser.parse_args(argv)
+    if args.order is not None and (args.cookies is not None or args.proxy is not None):
+        parser.error("--cookies/--proxy 仅在 --excel 模式下有效。")
+
     config = SplicingConfig(
         audio_dir=args.audio_dir,
-        order_path=args.order,
         middle_code=args.middle_code,
         output_name=args.output,
+        order_path=args.order,
+        excel_path=args.excel,
         ignore_sample_rate=args.ignore_sample_rate,
         segments=args.segments,
         export_audio=args.export_audio,
+        cookies_path=args.cookies,
+        proxy=args.proxy,
     )
 
     try:

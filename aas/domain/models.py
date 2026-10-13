@@ -23,12 +23,16 @@ class ClipKind(Enum):
 @dataclass
 class SplicingConfig:
     audio_dir: Path
-    order_path: Path
     middle_code: str
     output_name: str
+    order_path: Path | None = None
+    excel_path: Path | None = None
     ignore_sample_rate: bool = False
     segments: int | None = None
     export_audio: bool = False
+    cookies_path: Path | None = None
+    proxy: str | None = None
+    download_dir: Path | None = None
 
 
 @dataclass
@@ -96,7 +100,6 @@ class ProcessedSource:
 
 @dataclass
 class AudioCatalog:
-    audio_dir: Path
     middle_code: str
     ordered_codes: list[str]
     files_by_code: dict[str, AudioFile]

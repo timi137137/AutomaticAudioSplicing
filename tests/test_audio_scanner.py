@@ -8,7 +8,7 @@ from pathlib import Path
 
 from aas.domain.models import AudioFile
 from aas.errors import ScanError
-from aas.infra.scanner import FILENAME_PATTERN, _expand_order_codes, scan
+from aas.infra.scanner import FILENAME_PATTERN, _expand_order_codes, read_order, scan
 
 
 class FilenamePatternTest(unittest.TestCase):
@@ -92,10 +92,35 @@ class ScanIntegrationTest(unittest.TestCase):
             (audio / "[459-2] d.wav").write_bytes(b"RIFF")
             order = root / "order.txt"
             order.write_text("156\n13\n459\n", encoding="utf-8")
-            catalog = scan(audio, order, "0-4")
+            catalog = scan([audio], read_order(order), "0-4")
             self.assertEqual(catalog.ordered_codes, ["156-1", "13-1", "459-1"])
             # used_files = 3 songs + 1 middle
             self.assertEqual(len(catalog.used_files()), 4)
+
+    def test_scan_merges_multiple_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            downloaded = root / "downloads"
+            local = root / "local"
+            downloaded.mkdir()
+            local.mkdir()
+            (downloaded / "[101] a.flac").write_bytes(b"fLaC")
+            (local / "[0-0] mid.wav").write_bytes(b"RIFF")
+            catalog = scan([downloaded, local], ["101"], "0-0")
+            self.assertEqual(catalog.ordered_codes, ["101"])
+            self.assertEqual(catalog.middle_file.code, "0-0")
+
+    def test_duplicate_code_across_directories_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = root / "a"
+            second = root / "b"
+            first.mkdir()
+            second.mkdir()
+            (first / "[101] a.flac").write_bytes(b"fLaC")
+            (second / "[101] b.flac").write_bytes(b"fLaC")
+            with self.assertRaises(ScanError):
+                scan([first, second], ["101"], "101")
 
 
 if __name__ == "__main__":

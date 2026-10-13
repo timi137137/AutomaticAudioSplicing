@@ -25,3 +25,11 @@ class SegmentSplitError(SplicingError):
 
 class SegmentExportError(SplicingError):
     """A segment could not be rendered to MP3."""
+
+
+class SheetError(SplicingError):
+    """The download schedule workbook is missing or malformed."""
+
+
+class DownloadError(SplicingError):
+    """One or more scheduled sources could not be downloaded or normalized."""
